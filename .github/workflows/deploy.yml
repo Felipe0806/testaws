@@ -1,0 +1,44 @@
+name: Deploy to EC2 with Docker
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Clonar el repositorio
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # 2. Construir la imagen Docker
+    - name: Build Docker Image
+      run: |
+        docker build -t my-app:latest .
+        docker save my-app:latest -o my-app.tar
+
+    # 3. Transferir la imagen Docker a la instancia EC2
+    - name: Transfer Docker Image
+      uses: appleboy/scp-action@v0.1.10
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: my-app.tar
+        target: /home/ec2-user/my-app.tar
+
+    # 4. Desplegar la imagen en la instancia EC2
+    - name: SSH to EC2 and Deploy
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          docker load < /home/ec2-user/my-app.tar
+          docker stop my-app || true
+          docker rm my-app || true
+          docker run -d --name my-app -p 80:80 my-app:latest
