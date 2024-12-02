@@ -10,36 +10,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Clonar el repositorio
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Ensure permissions
-      run: sudo chmod -R 777 .
-    
-    - name: Cleanup Docker
+    # Agregar permisos explícitos para Docker
+    - name: Set up Docker permissions
       run: |
-        docker system prune -f
-        docker image prune -f
+        sudo chmod 666 /var/run/docker.sock
         
-    # 2. Construir la imagen Docker
     - name: Build Docker Image
       run: |
         docker build -t my-app:latest .
-        docker save my-app:latest -o /tmp/my-app.tar
-        ls -lh /tmp/my-app.tar
+        sudo docker save my-app:latest > my-app.tar
+        sudo chmod 644 my-app.tar
 
-    # 3. Transferir la imagen Docker a la instancia EC2
     - name: Transfer Docker Image
       uses: appleboy/scp-action@v0.1.6
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: /tmp/my-app.tar
-        target: /home/ec2-user/my-app.tar
+        source: my-app.tar
+        target: /home/ec2-user/
 
-    # 4. Desplegar la imagen en la instancia EC2
     - name: SSH to EC2 and Deploy
       uses: appleboy/ssh-action@v0.1.6
       with:
@@ -47,7 +40,8 @@ jobs:
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          docker load < /home/ec2-user/my-app.tar
-          docker stop my-app || true
-          docker rm my-app || true
-          docker run -d --name my-app -p 80:80 my-app:latest
+          sudo docker load < /home/ec2-user/my-app.tar
+          sudo docker stop my-app || true
+          sudo docker rm my-app || true
+          sudo docker run -d --name my-app -p 80:80 my-app:latest
+          rm /home/ec2-user/my-app.tar
