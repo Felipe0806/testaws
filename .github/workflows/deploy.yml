@@ -14,11 +14,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Ensure permissions
+      run: sudo chmod -R 777 .
+
     # 2. Construir la imagen Docker
     - name: Build Docker Image
       run: |
         docker build -t my-app:latest .
-        docker save my-app:latest -o my-app.tar
+        docker save my-app:latest -o /tmp/my-app.tar
 
     # 3. Transferir la imagen Docker a la instancia EC2
     - name: Transfer Docker Image
@@ -27,7 +30,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: my-app.tar
+        source: /tmp/my-app.tar
         target: /home/ec2-user/my-app.tar
 
     # 4. Desplegar la imagen en la instancia EC2
