@@ -1,18 +1,14 @@
 name: Deploy to EC2 with Docker
-
 on:
   push:
     branches:
       - main
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-
     # Agregar permisos explícitos para Docker
     - name: Set up Docker permissions
       run: |
@@ -20,19 +16,17 @@ jobs:
         
     - name: Build Docker Image
       run: |
-        docker build -t my-app:latest .
-        sudo docker save my-app:latest > my-app.tar
-        sudo chmod 644 my-app.tar
-
+        docker build -t deployaws:latest .
+        sudo docker save deployaws:latest > deployaws.tar
+        sudo chmod 644 deployaws.tar
     - name: Transfer Docker Image
       uses: appleboy/scp-action@v0.1.6
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: my-app.tar
+        source: deployaws.tar
         target: /home/ec2-user/
-
     - name: SSH to EC2 and Deploy
       uses: appleboy/ssh-action@v0.1.6
       with:
@@ -40,8 +34,8 @@ jobs:
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          sudo docker load < /home/ec2-user/my-app.tar
-          sudo docker stop my-app || true
-          sudo docker rm my-app || true
-          sudo docker run -d --name my-app -p 80:80 my-app:latest
-          rm /home/ec2-user/my-app.tar
+          sudo docker load < /home/ec2-user/deployaws.tar
+          sudo docker stop deployaws || true
+          sudo docker rm deployaws || true
+          sudo docker run -d --name deployaws -p 80:80 deployaws:latest
+          rm /home/ec2-user/deployaws.tar
